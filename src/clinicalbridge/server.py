@@ -143,6 +143,18 @@ def main():
     # Create FastAPI app wrapper
     app = FastAPI(title="ClinicalBridge MCP")
 
+    @app.get("/")
+    async def root():
+        """Root endpoint - redirects to health check."""
+        return {
+            "message": "🏥 ClinicalBridge MCP Server",
+            "version": "0.1.0",
+            "endpoints": {
+                "health": "/health",
+                "mcp": "/mcp"
+            }
+        }
+
     @app.get("/health")
     async def health():
         """Health check endpoint."""
