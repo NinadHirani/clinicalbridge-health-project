@@ -134,12 +134,36 @@ def main():
     host = os.environ.get("HOST", "0.0.0.0")
 
     print(f"🏥 ClinicalBridge MCP Server starting on {host}:{port}")
-    try:
-        # Try HTTP transport for web deployment (Railway, Render, etc)
-        mcp.run(transport="http-sse", host=host, port=port)
-    except Exception:
-        # Fallback to stdio for local/direct MCP clients
-        mcp.run(transport="stdio")
+
+    # Import uvicorn for HTTP server
+    import uvicorn
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI
+
+    # Create FastAPI app wrapper
+    app = FastAPI(title="ClinicalBridge MCP")
+
+    @app.get("/health")
+    async def health():
+        """Health check endpoint."""
+        return {"status": "healthy", "service": "ClinicalBridge MCP", "version": "0.1.0"}
+
+    @app.get("/mcp")
+    async def mcp_info():
+        """MCP server information."""
+        return {
+            "name": "ClinicalBridge",
+            "tools": [
+                "get_patient_summary",
+                "check_drug_interactions",
+                "get_icd10_suggestions",
+                "find_followup_slots",
+                "generate_discharge_summary"
+            ]
+        }
+
+    # Run with uvicorn
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":
