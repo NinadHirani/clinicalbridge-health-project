@@ -90,13 +90,29 @@ async def agent_card():
         "description": "AI-powered clinical decision support for discharge planning",
         "version": "0.1.0",
         "protocol": "mcp",
-        "transport": "http",
+        "transport": "sse",
+        "endpoint": "/sse",
         "tools": [
-            "get_patient_summary",
-            "check_drug_interactions",
-            "get_icd10_suggestions",
-            "find_followup_slots",
-            "generate_discharge_summary",
+            {
+                "name": "get_patient_summary",
+                "description": "Retrieve structured patient summary from FHIR: demographics, conditions, medications, allergies."
+            },
+            {
+                "name": "check_drug_interactions",
+                "description": "Check medication list for drug-drug interactions using FDA data and LLM synthesis."
+            },
+            {
+                "name": "get_icd10_suggestions",
+                "description": "Suggest ICD-10-CM billing codes for a list of clinical condition descriptions."
+            },
+            {
+                "name": "find_followup_slots",
+                "description": "Find available follow-up appointment slots by specialty and location."
+            },
+            {
+                "name": "generate_discharge_summary",
+                "description": "AI-powered discharge summary: synthesizes patient data, drug interactions, ICD-10 codes into a complete document."
+            },
         ],
         "sharp_supported": True,
         "data_classification": "SYNTHETIC",
@@ -230,8 +246,8 @@ def main():
 
     print(f"🏥 ClinicalBridge HTTP Server on {host}:{port}")
 
-    # Mount real MCP protocol at root
-    app.mount("/", mcp)
+    # Mount real MCP protocol at /sse
+    app.mount("/sse", mcp)
 
     uvicorn.run(app, host=host, port=port, log_level="info")
 
