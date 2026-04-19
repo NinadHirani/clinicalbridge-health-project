@@ -217,6 +217,29 @@ def main():
             ]
         }
 
+    @app.get("/sse")
+    async def sse_stream():
+        """Server-Sent Events stream for Streamable HTTP transport."""
+        from fastapi.responses import StreamingResponse
+        import json
+
+        async def event_generator():
+            # Send tool discovery
+            tools_data = {
+                "name": "ClinicalBridge",
+                "version": "0.1.0",
+                "tools": [
+                    {"name": "get_patient_summary", "description": "Retrieve structured patient summary from FHIR"},
+                    {"name": "check_drug_interactions", "description": "Check medication list for dangerous interactions"},
+                    {"name": "get_icd10_suggestions", "description": "Suggest ICD-10-CM billing codes"},
+                    {"name": "find_followup_slots", "description": "Find available follow-up appointment slots"},
+                    {"name": "generate_discharge_summary", "description": "AI-powered discharge summary generation"}
+                ]
+            }
+            yield f"data: {json.dumps(tools_data)}\n\n"
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
     # Run with uvicorn
     uvicorn.run(app, host=host, port=port, log_level="info")
 
