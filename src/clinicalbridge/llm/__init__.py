@@ -7,7 +7,7 @@ Get free API key at console.groq.com
 import os
 from groq import AsyncGroq
 
-GROQ_MODEL = "llama3-70b-8192"
+GROQ_MODEL = "llama-3.1-70b-versatile"
 
 
 async def synthesize(

@@ -107,6 +107,38 @@ clinicalbridge-mcp/
 
 ---
 
+---
+
+## 🧪 Testing with Live FHIR Data
+
+Use these confirmed synthetic patient IDs from the public SMART Health IT sandbox to test the tools:
+
+| Patient ID | Use Case |
+|---|---|
+| `87a339d0-8cae-418e-89c7-8651e6aab3c6` | Full discharge summary demo, drug interactions |
+| `9995a32b-ce66-4b88-b8da-7e65f84b2de7` | Alternative test patient |
+| `2739a9b2-4d49-4b43-92c0-9f1cab3b8cde` | Additional test patient |
+
+All patients are 100% synthetic — no real PHI.
+
+### Example Test Call
+
+```bash
+curl -X POST http://localhost:8080/sse \
+  -H "Content-Type: application/json" \
+  -d '{
+    "method": "call_tool",
+    "params": {
+      "name": "get_patient_summary",
+      "arguments": {
+        "patient_id": "87a339d0-8cae-418e-89c7-8651e6aab3c6"
+      }
+    }
+  }'
+```
+
+---
+
 ## API Examples
 
 ### Tool 1: Get Patient Summary

@@ -1,6 +1,6 @@
 """ClinicalBridge MCP Server
 
-Main entry point - FastMCP server exposing all clinical tools.
+Main entry point - FastAPI HTTP server exposing all clinical tools via MCP protocol.
 """
 
 import os
@@ -135,22 +135,13 @@ def main():
 
     print(f"🏥 ClinicalBridge MCP Server starting on {host}:{port}")
 
-    # Import uvicorn for HTTP server
     import uvicorn
     from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+    from fastapi.responses import HTMLResponse
 
-    # Create FastAPI app wrapper
     app = FastAPI(title="ClinicalBridge MCP")
 
-    # Add TrustedHost middleware to allow Railway domain
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["*"],  # Allow all hosts
-    )
-
-    # Add CORS middleware to allow Prompt Opinion platform
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -159,12 +150,44 @@ def main():
         allow_headers=["*"],
     )
 
+    # ── Keep informational endpoints ──────────────────────────
+    @app.get("/health")
+    @app.post("/health")
+    async def health():
+        """Health check endpoint."""
+        return {"status": "healthy", "service": "ClinicalBridge MCP", "version": "0.1.0"}
+
+    @app.get("/agent_card.json")
+    async def agent_card():
+        """Prompt Opinion Marketplace discovery manifest."""
+        return {
+            "name": "ClinicalBridge",
+            "description": (
+                "AI-powered clinical decision support for discharge planning. "
+                "Tools: patient summary, drug interactions, ICD-10 coding, "
+                "follow-up scheduling, and AI discharge summary generation. "
+                "All data is 100% synthetic."
+            ),
+            "version": "0.1.0",
+            "protocol": "mcp",
+            "transport": "sse",
+            "mcp_endpoint": "/sse",
+            "tools": [
+                "get_patient_summary",
+                "check_drug_interactions",
+                "get_icd10_suggestions",
+                "find_followup_slots",
+                "generate_discharge_summary",
+            ],
+            "sharp_supported": True,
+            "data_classification": "SYNTHETIC",
+            "tags": ["healthcare", "discharge-planning", "fhir", "clinical-decision-support"],
+        }
+
     @app.get("/")
     @app.post("/")
     async def root():
         """Root endpoint - serves HTML dashboard."""
-        from fastapi.responses import HTMLResponse
-
         html_content = """
         <!DOCTYPE html>
         <html lang="en">
@@ -175,7 +198,7 @@ def main():
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
                     color: #e2e8f0;
                     min-height: 100vh;
@@ -206,51 +229,11 @@ def main():
                     font-size: 0.9em;
                     margin-top: 10px;
                 }
-                .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px; }
-                .card {
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 12px;
-                    padding: 20px;
-                    backdrop-filter: blur(10px);
-                }
-                .card h3 {
-                    color: #60a5fa;
-                    margin-bottom: 10px;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                }
-                .card p { color: #cbd5e1; font-size: 0.95em; line-height: 1.6; }
-                .tools-section {
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 12px;
-                    padding: 30px;
-                    backdrop-filter: blur(10px);
-                }
-                .tools-section h2 {
-                    color: #60a5fa;
-                    margin-bottom: 20px;
-                    font-size: 1.8em;
-                }
-                .tool {
-                    background: rgba(0,0,0,0.3);
-                    border-left: 4px solid #34d399;
-                    padding: 15px;
-                    margin-bottom: 15px;
-                    border-radius: 6px;
-                }
-                .tool h4 {
-                    color: #34d399;
-                    margin-bottom: 5px;
-                    font-size: 1.1em;
-                }
-                .tool p { color: #cbd5e1; font-size: 0.9em; }
                 .links {
                     display: flex;
                     gap: 10px;
-                    margin-top: 10px;
+                    justify-content: center;
+                    margin-top: 20px;
                     flex-wrap: wrap;
                 }
                 a {
@@ -260,26 +243,25 @@ def main():
                     color: white;
                     text-decoration: none;
                     border-radius: 6px;
-                    font-size: 0.9em;
                     transition: background 0.3s;
                 }
                 a:hover { background: #2563eb; }
-                .code {
-                    background: rgba(0,0,0,0.5);
-                    padding: 12px;
+                .tool-list {
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    padding: 30px;
+                    margin-top: 30px;
+                }
+                .tool {
+                    background: rgba(0,0,0,0.3);
+                    border-left: 4px solid #34d399;
+                    padding: 15px;
+                    margin-bottom: 15px;
                     border-radius: 6px;
-                    font-family: 'Monaco', 'Courier New', monospace;
-                    font-size: 0.85em;
-                    overflow-x: auto;
-                    margin-top: 10px;
                 }
-                footer {
-                    text-align: center;
-                    padding: 20px;
-                    color: #64748b;
-                    margin-top: 40px;
-                    font-size: 0.9em;
-                }
+                .tool h4 { color: #34d399; margin-bottom: 5px; }
+                .tool p { color: #cbd5e1; font-size: 0.9em; }
             </style>
         </head>
         <body>
@@ -288,172 +270,46 @@ def main():
                     <h1>🏥 ClinicalBridge MCP</h1>
                     <p>AI-Powered Clinical Decision Support for Discharge Planning</p>
                     <div class="status">✅ Service Healthy</div>
+                    <div class="links">
+                        <a href="/health">Health</a>
+                        <a href="/agent_card.json">Manifest</a>
+                        <a href="/sse">MCP Stream</a>
+                    </div>
                 </header>
-
-                <div class="grid">
-                    <div class="card">
-                        <h3>📊 Version</h3>
-                        <p><strong>0.1.0</strong><br/>Agents Assemble Hackathon</p>
-                    </div>
-                    <div class="card">
-                        <h3>🛠️ Tools</h3>
-                        <p><strong>5 Clinical Tools</strong><br/>FHIR R4 + LLM-Powered</p>
-                    </div>
-                    <div class="card">
-                        <h3>📋 Data</h3>
-                        <p><strong>100% Synthetic</strong><br/>No real PHI</p>
-                    </div>
-                </div>
-
-                <div class="tools-section">
-                    <h2>📚 Available Tools</h2>
-
+                <div class="tool-list">
+                    <h2>📚 5 Clinical Tools Available</h2>
                     <div class="tool">
-                        <h4>1️⃣ get_patient_summary</h4>
-                        <p>Retrieve structured patient data from FHIR R4 (demographics, conditions, medications, allergies)</p>
-                        <div class="code">
-                            curl -X POST https://clinicalbridge-health-project-production.up.railway.app/mcp \\<br/>
-                            &nbsp;&nbsp;-H "Content-Type: application/json" \\<br/>
-                            &nbsp;&nbsp;-d '{"patient_id": "patient-001"}'
-                        </div>
+                        <h4>1. get_patient_summary</h4>
+                        <p>Retrieve FHIR R4 patient data (demographics, conditions, medications, allergies)</p>
                     </div>
-
                     <div class="tool">
-                        <h4>2️⃣ check_drug_interactions</h4>
-                        <p>Check medications for dangerous interactions using FDA data + LLM synthesis</p>
-                        <div class="code">
-                            curl -X POST https://clinicalbridge-health-project-production.up.railway.app/mcp \\<br/>
-                            &nbsp;&nbsp;-H "Content-Type: application/json" \\<br/>
-                            &nbsp;&nbsp;-d '{"medications": ["warfarin", "ibuprofen"]}'
-                        </div>
+                        <h4>2. check_drug_interactions</h4>
+                        <p>FDA-based interaction checking + LLM clinical synthesis</p>
                     </div>
-
                     <div class="tool">
-                        <h4>3️⃣ get_icd10_suggestions</h4>
+                        <h4>3. get_icd10_suggestions</h4>
                         <p>Suggest ICD-10-CM billing codes for clinical conditions</p>
-                        <div class="code">
-                            curl -X POST https://clinicalbridge-health-project-production.up.railway.app/mcp \\<br/>
-                            &nbsp;&nbsp;-H "Content-Type: application/json" \\<br/>
-                            &nbsp;&nbsp;-d '{"conditions": ["type 2 diabetes", "hypertension"]}'
-                        </div>
                     </div>
-
                     <div class="tool">
-                        <h4>4️⃣ find_followup_slots</h4>
-                        <p>Find available follow-up appointment slots by specialty and location</p>
-                        <div class="code">
-                            curl -X POST https://clinicalbridge-health-project-production.up.railway.app/mcp \\<br/>
-                            &nbsp;&nbsp;-H "Content-Type: application/json" \\<br/>
-                            &nbsp;&nbsp;-d '{"specialty": "endocrinology", "zip_code": "94102"}'
-                        </div>
+                        <h4>4. find_followup_slots</h4>
+                        <p>Find available follow-up appointments by specialty and location</p>
                     </div>
-
                     <div class="tool">
-                        <h4>5️⃣ generate_discharge_summary</h4>
-                        <p><strong>⭐ AI-Powered:</strong> Synthesizes all data into complete discharge document</p>
-                        <div class="code">
-                            curl -X POST https://clinicalbridge-health-project-production.up.railway.app/mcp \\<br/>
-                            &nbsp;&nbsp;-H "Content-Type: application/json" \\<br/>
-                            &nbsp;&nbsp;-d '{"patient_id": "patient-001", "tone": "clinical"}'
-                        </div>
+                        <h4>5. generate_discharge_summary</h4>
+                        <p>⭐ AI-powered complete discharge document generation</p>
                     </div>
                 </div>
-
-                <div style="margin-top: 40px; text-align: center;">
-                    <h2 style="color: #60a5fa; margin-bottom: 20px;">🚀 Quick Links</h2>
-                    <div class="links" style="justify-content: center;">
-                        <a href="/health">Health Check</a>
-                        <a href="/mcp">MCP Info</a>
-                        <a href="/tools">Tools List</a>
-                        <a href="https://github.com/NinadHirani/clinicalbridge-health-project" target="_blank">GitHub</a>
-                    </div>
-                </div>
-
-                <footer>
-                    <p>🏥 ClinicalBridge • Agents Assemble Hackathon • Built by NinadHirani</p>
-                    <p>Using: FastMCP • Groq API • FHIR R4 • Railway</p>
-                </footer>
             </div>
         </body>
         </html>
         """
         return HTMLResponse(content=html_content)
 
-    @app.get("/health")
-    @app.post("/health")
-    async def health():
-        """Health check endpoint."""
-        return {"status": "healthy", "service": "ClinicalBridge MCP", "version": "0.1.0"}
+    # ── MOUNT THE REAL MCP SSE TRANSPORT ──────────────────────────
+    # This is what Prompt Opinion connects to
+    mcp_asgi = mcp.sse_app()
+    app.mount("/", mcp_asgi)
 
-    @app.get("/mcp")
-    @app.post("/mcp")
-    async def mcp_info():
-        """MCP server information and tool list."""
-        return {
-            "name": "ClinicalBridge",
-            "version": "0.1.0",
-            "tools": [
-                {
-                    "name": "get_patient_summary",
-                    "description": "Retrieve structured patient summary from FHIR"
-                },
-                {
-                    "name": "check_drug_interactions",
-                    "description": "Check medication list for dangerous interactions"
-                },
-                {
-                    "name": "get_icd10_suggestions",
-                    "description": "Suggest ICD-10-CM billing codes"
-                },
-                {
-                    "name": "find_followup_slots",
-                    "description": "Find available follow-up appointment slots"
-                },
-                {
-                    "name": "generate_discharge_summary",
-                    "description": "AI-powered discharge summary generation"
-                }
-            ]
-        }
-
-    @app.get("/tools")
-    @app.post("/tools")
-    async def list_tools():
-        """List all available tools."""
-        return {
-            "tools": [
-                "get_patient_summary",
-                "check_drug_interactions",
-                "get_icd10_suggestions",
-                "find_followup_slots",
-                "generate_discharge_summary"
-            ]
-        }
-
-    @app.get("/sse")
-    async def sse_stream():
-        """Server-Sent Events stream for Streamable HTTP transport."""
-        from fastapi.responses import StreamingResponse
-        import json
-
-        async def event_generator():
-            # Send tool discovery
-            tools_data = {
-                "name": "ClinicalBridge",
-                "version": "0.1.0",
-                "tools": [
-                    {"name": "get_patient_summary", "description": "Retrieve structured patient summary from FHIR"},
-                    {"name": "check_drug_interactions", "description": "Check medication list for dangerous interactions"},
-                    {"name": "get_icd10_suggestions", "description": "Suggest ICD-10-CM billing codes"},
-                    {"name": "find_followup_slots", "description": "Find available follow-up appointment slots"},
-                    {"name": "generate_discharge_summary", "description": "AI-powered discharge summary generation"}
-                ]
-            }
-            yield f"data: {json.dumps(tools_data)}\n\n"
-
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-    # Run with uvicorn
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 

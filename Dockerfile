@@ -16,5 +16,5 @@ EXPOSE 8080
 ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 
-# Run the server
-CMD ["python", "-m", "clinicalbridge.server"]
+# Run the server using the entrypoint script
+CMD ["clinicalbridge"]

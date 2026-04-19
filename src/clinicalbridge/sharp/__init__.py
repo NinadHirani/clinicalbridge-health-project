@@ -1,10 +1,10 @@
 """SHARP Context Extraction
 
 SHARP (Standardized Healthcare Agent Runtime Parameters) context propagation
-for Prompt Opinion MCP integration.
+for Prompt Opinion MCP integration. Supports both ctx.meta dict and HTTP headers.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 import os
 
@@ -30,8 +30,8 @@ class SHARPContext:
 
 def extract_sharp(ctx) -> SHARPContext:
     """
-    Extract SHARP context from FastMCP Context.meta dict.
-    Falls back to environment variables for local testing.
+    Extract SHARP context from FastMCP Context.
+    Checks in order: ctx.meta["sharp"] dict → HTTP request headers → env vars.
 
     Args:
         ctx: FastMCP Context object (can be None)
@@ -42,14 +42,30 @@ def extract_sharp(ctx) -> SHARPContext:
     if ctx is None:
         return SHARPContext()
 
+    # First, try to extract from ctx.meta dict (MCP standard)
     meta = getattr(ctx, "meta", {}) or {}
     sharp_raw = meta.get("sharp", {}) or {}
 
+    # Also check HTTP headers (Prompt Opinion forwards SHARP as headers)
+    headers: dict = {}
+    request = getattr(ctx, "request", None)
+    if request:
+        raw_headers = getattr(request, "headers", {})
+        headers = {k.lower(): v for k, v in dict(raw_headers).items()}
+
+    def _get(meta_key: str, header_key: str, default: str = "") -> str:
+        """Get value from meta dict, then headers, then default."""
+        return (
+            sharp_raw.get(meta_key)
+            or headers.get(header_key.lower())
+            or default
+        )
+
     return SHARPContext(
-        patient_id=sharp_raw.get("patient_id", ""),
-        fhir_base_url=sharp_raw.get("fhir_base_url", ""),
-        fhir_access_token=sharp_raw.get("fhir_access_token", ""),
-        encounter_id=sharp_raw.get("encounter_id", ""),
-        practitioner_id=sharp_raw.get("practitioner_id", ""),
-        organization_id=sharp_raw.get("organization_id", ""),
+        patient_id=_get("patient_id", "x-sharp-patient-id"),
+        fhir_base_url=_get("fhir_base_url", "x-sharp-fhir-url"),
+        fhir_access_token=_get("fhir_access_token", "x-sharp-fhir-token"),
+        encounter_id=_get("encounter_id", "x-sharp-encounter-id"),
+        practitioner_id=_get("practitioner_id", "x-sharp-practitioner-id"),
+        organization_id=_get("organization_id", "x-sharp-organization-id"),
     )

@@ -1,0 +1,34 @@
+{
+  "name": "ClinicalBridge",
+  "description": "AI-powered clinical decision support for discharge planning. Covers patient FHIR data retrieval, drug interaction checking, ICD-10 code suggestions, follow-up scheduling, and AI discharge summary generation. All data is 100% synthetic.",
+  "version": "0.1.0",
+  "author": "NinadHirani",
+  "protocol": "mcp",
+  "transport": "sse",
+  "mcp_endpoint": "/sse",
+  "sharp_supported": true,
+  "data_classification": "SYNTHETIC",
+  "tags": ["healthcare", "discharge-planning", "fhir", "clinical-decision-support", "mcp"],
+  "tools": [
+    {
+      "name": "get_patient_summary",
+      "description": "Retrieve structured patient data from FHIR R4 (demographics, conditions, medications, allergies)"
+    },
+    {
+      "name": "check_drug_interactions",
+      "description": "Check medications for dangerous interactions using FDA data + LLM synthesis"
+    },
+    {
+      "name": "get_icd10_suggestions",
+      "description": "Suggest ICD-10-CM billing codes for clinical conditions with confidence scores"
+    },
+    {
+      "name": "find_followup_slots",
+      "description": "Find available follow-up appointment slots by specialty and ZIP code"
+    },
+    {
+      "name": "generate_discharge_summary",
+      "description": "AI-powered synthesis of all clinical data into a complete discharge document"
+    }
+  ]
+}
