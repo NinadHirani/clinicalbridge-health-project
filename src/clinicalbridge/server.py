@@ -14,12 +14,55 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# FastMCP for real MCP protocol
+from fastmcp import FastMCP, Context
+
 # Import all tools
 from .tools import get_patient_summary
 from .tools.drug_interactions import check_drug_interactions
 from .tools.icd10_suggestions import get_icd10_suggestions
 from .tools.followup_slots import find_followup_slots
 from .tools.discharge_summary import generate_discharge_summary
+
+# ── Real MCP server (what Prompt Opinion connects to) ─────────────────────
+mcp = FastMCP(
+    name="ClinicalBridge",
+    instructions=(
+        "ClinicalBridge provides five healthcare tools for discharge planning. "
+        "All data is 100% synthetic. "
+        "Call get_patient_summary first, then generate_discharge_summary last."
+    )
+)
+
+@mcp.tool()
+async def get_patient_summary(patient_id: str, ctx: Context) -> dict:
+    """Retrieve structured patient summary from FHIR: demographics, conditions, medications, allergies."""
+    from .tools import get_patient_summary as _fn
+    return await _fn(patient_id, ctx)
+
+@mcp.tool()
+async def check_drug_interactions(medications: list[str], patient_id: str = "", ctx: Context = None) -> dict:
+    """Check medication list for drug-drug interactions using FDA data and LLM synthesis."""
+    from .tools.drug_interactions import check_drug_interactions as _fn
+    return await _fn(medications, patient_id, ctx)
+
+@mcp.tool()
+async def get_icd10_suggestions(conditions: list[str], encounter_type: str = "inpatient", ctx: Context = None) -> dict:
+    """Suggest ICD-10-CM billing codes for a list of clinical condition descriptions."""
+    from .tools.icd10_suggestions import get_icd10_suggestions as _fn
+    return await _fn(conditions, encounter_type, ctx)
+
+@mcp.tool()
+async def find_followup_slots(specialty: str, zip_code: str, days_from_now: int = 14, ctx: Context = None) -> dict:
+    """Find available follow-up appointment slots by specialty and location."""
+    from .tools.followup_slots import find_followup_slots as _fn
+    return await _fn(specialty, zip_code, days_from_now, ctx)
+
+@mcp.tool()
+async def generate_discharge_summary(patient_id: str, include_sections: list[str] = None, tone: str = "clinical", ctx: Context = None) -> dict:
+    """AI-powered discharge summary: synthesizes patient data, drug interactions, ICD-10 codes into a complete document."""
+    from .tools.discharge_summary import generate_discharge_summary as _fn
+    return await _fn(patient_id, include_sections, tone, ctx)
 
 app = FastAPI(title="ClinicalBridge MCP")
 
@@ -186,6 +229,10 @@ def main():
     host = os.environ.get("HOST", "0.0.0.0")
 
     print(f"🏥 ClinicalBridge HTTP Server on {host}:{port}")
+
+    # Mount real MCP protocol at /sse and /messages
+    app.mount("/", mcp.sse_app())
+
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
