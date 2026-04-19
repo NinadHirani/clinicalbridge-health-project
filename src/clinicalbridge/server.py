@@ -134,7 +134,12 @@ def main():
     host = os.environ.get("HOST", "0.0.0.0")
 
     print(f"🏥 ClinicalBridge MCP Server starting on {host}:{port}")
-    mcp.run(transport="stdio")
+    try:
+        # Try HTTP transport for web deployment (Railway, Render, etc)
+        mcp.run(transport="http-sse", host=host, port=port)
+    except Exception:
+        # Fallback to stdio for local/direct MCP clients
+        mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
