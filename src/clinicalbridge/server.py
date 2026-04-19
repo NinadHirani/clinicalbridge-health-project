@@ -1,141 +1,192 @@
 """ClinicalBridge MCP Server
 
-Main entry point - FastMCP server with all clinical tools.
-Uses stdio transport for MCP protocol.
+HTTP wrapper for Railway deployment.
+Exposes MCP tools as HTTP endpoints.
 """
 
 import os
-from fastmcp import FastMCP, Context
+import json
+import asyncio
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from .tools import get_patient_summary as _get_patient_summary
-from .tools.drug_interactions import check_drug_interactions as _check_drug_interactions
-from .tools.icd10_suggestions import get_icd10_suggestions as _get_icd10_suggestions
-from .tools.followup_slots import find_followup_slots as _find_followup_slots
-from .tools.discharge_summary import generate_discharge_summary as _generate_discharge_summary
+# Import all tools
+from .tools import get_patient_summary
+from .tools.drug_interactions import check_drug_interactions
+from .tools.icd10_suggestions import get_icd10_suggestions
+from .tools.followup_slots import find_followup_slots
+from .tools.discharge_summary import generate_discharge_summary
 
-mcp = FastMCP(
-    name="ClinicalBridge",
-    instructions=(
-        "ClinicalBridge provides five healthcare tools for discharge planning workflows. "
-        "Tools are SHARP-aware and use FHIR R4 for patient data. "
-        "All data used in this deployment is 100% synthetic. "
-        "Use get_patient_summary first, then other tools as needed, "
-        "and call generate_discharge_summary last for a complete output."
-    )
+app = FastAPI(title="ClinicalBridge MCP")
+
+# Add CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
-@mcp.tool()
-async def get_patient_summary(patient_id: str, ctx: Context) -> dict:
+@app.get("/health")
+async def health():
+    """Health check."""
+    return {"status": "healthy", "service": "ClinicalBridge MCP", "version": "0.1.0"}
+
+
+@app.get("/agent_card.json")
+async def agent_card():
+    """Marketplace discovery manifest."""
+    return {
+        "name": "ClinicalBridge",
+        "description": "AI-powered clinical decision support for discharge planning",
+        "version": "0.1.0",
+        "protocol": "mcp",
+        "transport": "http",
+        "tools": [
+            "get_patient_summary",
+            "check_drug_interactions",
+            "get_icd10_suggestions",
+            "find_followup_slots",
+            "generate_discharge_summary",
+        ],
+        "sharp_supported": True,
+        "data_classification": "SYNTHETIC",
+    }
+
+
+@app.post("/tools/get_patient_summary")
+async def call_get_patient_summary(patient_id: str):
+    """Get patient summary from FHIR."""
+    return await get_patient_summary(patient_id, ctx=None)
+
+
+@app.post("/tools/check_drug_interactions")
+async def call_check_drug_interactions(medications: list[str], patient_id: str = ""):
+    """Check drug interactions."""
+    return await check_drug_interactions(medications, patient_id, ctx=None)
+
+
+@app.post("/tools/get_icd10_suggestions")
+async def call_get_icd10_suggestions(conditions: list[str], encounter_type: str = "inpatient"):
+    """Get ICD-10 suggestions."""
+    return await get_icd10_suggestions(conditions, encounter_type, ctx=None)
+
+
+@app.post("/tools/find_followup_slots")
+async def call_find_followup_slots(specialty: str, zip_code: str, days_from_now: int = 14):
+    """Find follow-up slots."""
+    return await find_followup_slots(specialty, zip_code, days_from_now, ctx=None)
+
+
+@app.post("/tools/generate_discharge_summary")
+async def call_generate_discharge_summary(patient_id: str, tone: str = "clinical"):
+    """Generate discharge summary."""
+    return await generate_discharge_summary(patient_id, tone=tone, ctx=None)
+
+
+@app.get("/")
+async def root():
+    """HTML dashboard."""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>🏥 ClinicalBridge MCP</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                color: #e2e8f0;
+                min-height: 100vh;
+                padding: 40px 20px;
+            }
+            .container { max-width: 1200px; margin: 0 auto; }
+            h1 {
+                background: linear-gradient(135deg, #60a5fa, #34d399);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-size: 2.5em;
+                text-align: center;
+            }
+            .status {
+                text-align: center;
+                padding: 20px;
+                background: rgba(16, 185, 129, 0.1);
+                border-radius: 12px;
+                margin: 20px 0;
+            }
+            .tools {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 20px;
+                margin-top: 40px;
+            }
+            .tool {
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 12px;
+                padding: 20px;
+            }
+            .tool h3 { color: #60a5fa; margin-top: 0; }
+            .tool p { color: #cbd5e1; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🏥 ClinicalBridge MCP</h1>
+            <div class="status">
+                ✅ Service Running<br/>
+                <small>AI-Powered Clinical Decision Support</small>
+            </div>
+            <div class="tools">
+                <div class="tool">
+                    <h3>1. get_patient_summary</h3>
+                    <p>Retrieve FHIR R4 patient data</p>
+                    <code>POST /tools/get_patient_summary</code>
+                </div>
+                <div class="tool">
+                    <h3>2. check_drug_interactions</h3>
+                    <p>FDA-based interaction checking + LLM synthesis</p>
+                    <code>POST /tools/check_drug_interactions</code>
+                </div>
+                <div class="tool">
+                    <h3>3. get_icd10_suggestions</h3>
+                    <p>Suggest ICD-10-CM billing codes</p>
+                    <code>POST /tools/get_icd10_suggestions</code>
+                </div>
+                <div class="tool">
+                    <h3>4. find_followup_slots</h3>
+                    <p>Find available appointments</p>
+                    <code>POST /tools/find_followup_slots</code>
+                </div>
+                <div class="tool">
+                    <h3>5. generate_discharge_summary</h3>
+                    <p>⭐ AI-powered discharge generation</p>
+                    <code>POST /tools/generate_discharge_summary</code>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
     """
-    Retrieve structured patient summary from FHIR: demographics, conditions,
-    medications, allergies, and recent vitals.
-
-    Args:
-        patient_id: FHIR Patient resource ID
-
-    Returns:
-        Structured patient data from FHIR R4
-    """
-    return await _get_patient_summary(patient_id, ctx)
-
-
-@mcp.tool()
-async def check_drug_interactions(
-    medications: list[str],
-    patient_id: str = "",
-    ctx: Context = None
-) -> dict:
-    """
-    Check medication list for drug-drug interactions using FDA data and LLM synthesis.
-    Returns severity flags and clinical recommendations.
-
-    Args:
-        medications: List of medication names
-        patient_id: Optional patient ID for allergy cross-checking
-
-    Returns:
-        Interaction analysis with severity and recommendations
-    """
-    return await _check_drug_interactions(medications, patient_id, ctx)
-
-
-@mcp.tool()
-async def get_icd10_suggestions(
-    conditions: list[str],
-    encounter_type: str = "inpatient",
-    ctx: Context = None
-) -> dict:
-    """
-    Suggest ICD-10-CM billing codes for a list of clinical condition descriptions.
-    Uses CMS ICD-10 API with LLM disambiguation.
-
-    Args:
-        conditions: List of condition descriptions
-        encounter_type: "inpatient" | "outpatient" | "ED"
-
-    Returns:
-        ICD-10 code suggestions with confidence scores
-    """
-    return await _get_icd10_suggestions(conditions, encounter_type, ctx)
-
-
-@mcp.tool()
-async def find_followup_slots(
-    specialty: str,
-    zip_code: str,
-    days_from_now: int = 14,
-    ctx: Context = None
-) -> dict:
-    """
-    Find available follow-up appointment slots by specialty and location.
-    Returns synthetic but realistic scheduling options.
-
-    Args:
-        specialty: Medical specialty (e.g., "endocrinology", "cardiology")
-        zip_code: Patient's ZIP code
-        days_from_now: Target follow-up window
-
-    Returns:
-        List of available appointment slots
-    """
-    return await _find_followup_slots(specialty, zip_code, days_from_now, ctx)
-
-
-@mcp.tool()
-async def generate_discharge_summary(
-    patient_id: str,
-    include_sections: list[str] = None,
-    tone: str = "clinical",
-    ctx: Context = None
-) -> dict:
-    """
-    AI-powered discharge summary generation. Synthesizes patient data, drug interactions,
-    ICD-10 codes, and follow-up plans into a complete clinician-ready document.
-
-    This is the primary AI tool — cannot be replicated by rule-based systems.
-
-    Args:
-        patient_id: Patient FHIR ID
-        include_sections: Optional sections to include
-        tone: "clinical" | "patient_friendly"
-
-    Returns:
-        Complete discharge summary with all clinical data
-    """
-    return await _generate_discharge_summary(patient_id, include_sections, tone, ctx)
+    return HTMLResponse(html)
 
 
 def main():
-    """Run the MCP server."""
-    print("🏥 ClinicalBridge MCP Server starting...")
+    """Run the HTTP server."""
+    import uvicorn
 
-    # Run FastMCP with stdio transport for MCP protocol
-    # Prompt Opinion and other MCP clients will communicate via stdio
-    mcp.run(transport="stdio")
+    port = int(os.environ.get("PORT", 8080))
+    host = os.environ.get("HOST", "0.0.0.0")
+
+    print(f"🏥 ClinicalBridge HTTP Server on {host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":
