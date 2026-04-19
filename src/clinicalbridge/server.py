@@ -137,34 +137,77 @@ def main():
 
     # Import uvicorn for HTTP server
     import uvicorn
-    from contextlib import asynccontextmanager
     from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
 
     # Create FastAPI app wrapper
     app = FastAPI(title="ClinicalBridge MCP")
 
+    # Add CORS middleware to allow Prompt Opinion platform
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     @app.get("/")
+    @app.post("/")
     async def root():
-        """Root endpoint - redirects to health check."""
+        """Root endpoint - shows server info."""
         return {
             "message": "🏥 ClinicalBridge MCP Server",
             "version": "0.1.0",
             "endpoints": {
                 "health": "/health",
-                "mcp": "/mcp"
+                "mcp": "/mcp",
+                "tools": "/tools"
             }
         }
 
     @app.get("/health")
+    @app.post("/health")
     async def health():
         """Health check endpoint."""
         return {"status": "healthy", "service": "ClinicalBridge MCP", "version": "0.1.0"}
 
     @app.get("/mcp")
+    @app.post("/mcp")
     async def mcp_info():
-        """MCP server information."""
+        """MCP server information and tool list."""
         return {
             "name": "ClinicalBridge",
+            "version": "0.1.0",
+            "tools": [
+                {
+                    "name": "get_patient_summary",
+                    "description": "Retrieve structured patient summary from FHIR"
+                },
+                {
+                    "name": "check_drug_interactions",
+                    "description": "Check medication list for dangerous interactions"
+                },
+                {
+                    "name": "get_icd10_suggestions",
+                    "description": "Suggest ICD-10-CM billing codes"
+                },
+                {
+                    "name": "find_followup_slots",
+                    "description": "Find available follow-up appointment slots"
+                },
+                {
+                    "name": "generate_discharge_summary",
+                    "description": "AI-powered discharge summary generation"
+                }
+            ]
+        }
+
+    @app.get("/tools")
+    @app.post("/tools")
+    async def list_tools():
+        """List all available tools."""
+        return {
             "tools": [
                 "get_patient_summary",
                 "check_drug_interactions",
