@@ -305,9 +305,9 @@ def main():
         """
         return HTMLResponse(content=html_content)
 
-    # ── MOUNT THE REAL MCP SSE TRANSPORT ──────────────────────────
-    # This is what Prompt Opinion connects to
-    mcp_asgi = mcp.sse_app()
+    # ── MOUNT THE REAL MCP ASGI APP ──────────────────────────
+    # FastMCP exports as an ASGI app for HTTP transports
+    mcp_asgi = mcp.app()
     app.mount("/", mcp_asgi)
 
     uvicorn.run(app, host=host, port=port, log_level="info")
