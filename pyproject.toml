@@ -1,0 +1,28 @@
+[project]
+name = "clinicalbridge-mcp"
+version = "0.1.0"
+description = "ClinicalBridge: Healthcare MCP Server for Discharge Planning"
+authors = [{name = "Solo Builder", email = "builder@clinicalbridge.ai"}]
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.0",
+    "httpx>=0.27",
+    "groq>=0.9",
+    "python-dotenv>=1.0",
+    "uvicorn>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+    "black>=23.0",
+    "ruff>=0.1",
+]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+clinicalbridge = "clinicalbridge.server:main"
