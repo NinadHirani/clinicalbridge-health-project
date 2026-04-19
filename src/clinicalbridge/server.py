@@ -90,28 +90,32 @@ async def agent_card():
         "description": "AI-powered clinical decision support for discharge planning",
         "version": "0.1.0",
         "protocol": "mcp",
-        "transport": "sse",
-        "endpoint": "/sse",
+        "transport": "http",
         "tools": [
             {
                 "name": "get_patient_summary",
-                "description": "Retrieve structured patient summary from FHIR: demographics, conditions, medications, allergies."
+                "description": "Retrieve structured patient summary from FHIR: demographics, conditions, medications, allergies.",
+                "endpoint": "/tools/get_patient_summary"
             },
             {
                 "name": "check_drug_interactions",
-                "description": "Check medication list for drug-drug interactions using FDA data and LLM synthesis."
+                "description": "Check medication list for drug-drug interactions using FDA data and LLM synthesis.",
+                "endpoint": "/tools/check_drug_interactions"
             },
             {
                 "name": "get_icd10_suggestions",
-                "description": "Suggest ICD-10-CM billing codes for a list of clinical condition descriptions."
+                "description": "Suggest ICD-10-CM billing codes for a list of clinical condition descriptions.",
+                "endpoint": "/tools/get_icd10_suggestions"
             },
             {
                 "name": "find_followup_slots",
-                "description": "Find available follow-up appointment slots by specialty and location."
+                "description": "Find available follow-up appointment slots by specialty and location.",
+                "endpoint": "/tools/find_followup_slots"
             },
             {
                 "name": "generate_discharge_summary",
-                "description": "AI-powered discharge summary: synthesizes patient data, drug interactions, ICD-10 codes into a complete document."
+                "description": "AI-powered discharge summary: synthesizes patient data, drug interactions, ICD-10 codes into a complete document.",
+                "endpoint": "/tools/generate_discharge_summary"
             },
         ],
         "sharp_supported": True,
@@ -245,9 +249,6 @@ def main():
     host = os.environ.get("HOST", "0.0.0.0")
 
     print(f"🏥 ClinicalBridge HTTP Server on {host}:{port}")
-
-    # Mount real MCP protocol at /sse
-    app.mount("/sse", mcp.app())
 
     uvicorn.run(app, host=host, port=port, log_level="info")
 
