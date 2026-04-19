@@ -8,7 +8,6 @@ RUN pip install --no-cache-dir -e .
 
 # Copy application code
 COPY src/ src/
-COPY data/ data/
 
 # Expose port
 EXPOSE 8080
