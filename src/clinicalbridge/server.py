@@ -230,8 +230,8 @@ def main():
 
     print(f"🏥 ClinicalBridge HTTP Server on {host}:{port}")
 
-    # Mount real MCP protocol at /sse and /messages
-    app.mount("/", mcp.sse_app())
+    # Mount real MCP protocol at root
+    app.mount("/", mcp)
 
     uvicorn.run(app, host=host, port=port, log_level="info")
 
