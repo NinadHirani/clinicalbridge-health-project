@@ -139,9 +139,16 @@ def main():
     import uvicorn
     from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
     # Create FastAPI app wrapper
     app = FastAPI(title="ClinicalBridge MCP")
+
+    # Add TrustedHost middleware to allow Railway domain
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["*"],  # Allow all hosts
+    )
 
     # Add CORS middleware to allow Prompt Opinion platform
     app.add_middleware(
